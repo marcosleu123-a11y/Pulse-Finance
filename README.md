@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Pulse Finance
 
 Aplicacao web de controle financeiro pessoal com foco em:
@@ -25,6 +24,7 @@ Aplicacao web de controle financeiro pessoal com foco em:
 - [Como Rodar](#como-rodar)
 - [Assistente com IA (Ollama)](#assistente-com-ia-ollama)
 - [Variaveis de Ambiente](#variaveis-de-ambiente)
+- [Deploy na Vercel](#deploy-na-vercel)
 - [API REST](#api-rest)
 - [Estrutura de Pastas](#estrutura-de-pastas)
 - [Documentacao de Estudo](#documentacao-de-estudo)
@@ -154,8 +154,25 @@ Exemplo de resposta:
 | `OLLAMA_TIMEOUT_MS` | `45000` | Timeout para chamada de chat |
 | `OLLAMA_PULL_TIMEOUT_MS` | `120000` | Timeout para download do modelo |
 | `OLLAMA_READY_TIMEOUT_MS` | `20000` | Timeout para aguardar Ollama subir |
-| `OLLAMA_AUTO_START` | `true` | Tenta iniciar `ollama serve` automaticamente |
-| `OLLAMA_SKIP_MODEL_CHECK` | `false` | Pula validacao/download do modelo |
+| `OLLAMA_API_KEY` | vazio | Token Bearer opcional para endpoint Ollama remoto |
+| `OLLAMA_AUTO_START` | `true` local / `false` serverless | Tenta iniciar `ollama serve` automaticamente |
+| `OLLAMA_SKIP_MODEL_CHECK` | `false` local / `true` serverless | Pula validacao/download do modelo |
+| `DATA_FILE_PATH` | `backend/data/store.json` local / `/tmp/pulse-finance-store.json` na Vercel | Caminho do arquivo de persistencia |
+
+---
+
+## Deploy na Vercel
+Este repositorio agora possui `vercel.json` para:
+- servir `frontend/` como site estatico
+- rotear `GET/POST/PUT/DELETE /api/*` para `backend/src/server.js`
+
+Pontos importantes em producao:
+1. **Ollama local nao funciona em serverless.**
+   - Na Vercel, configure `OLLAMA_BASE_URL` com endpoint publico (nao `localhost`).
+   - Se o endpoint exigir token, configure `OLLAMA_API_KEY`.
+2. **Persistencia em arquivo no serverless e limitada.**
+   - O padrao usa `/tmp/pulse-finance-store.json` para evitar erro de permissao.
+   - `/tmp` nao substitui banco de dados persistente; para dados de producao, migre para banco externo.
 
 ---
 
@@ -238,6 +255,9 @@ A pasta `study/` traz conteudo didatico sobre:
    - `http://127.0.0.1:11434/api/tags`
 4. Se necessario, execute manualmente:
    - `ollama run gpt-oss:20b-cloud`
+5. Em deploy Vercel:
+   - nao use `OLLAMA_BASE_URL` apontando para `localhost`
+   - configure um endpoint Ollama remoto
 
 ### Porta 3000 ocupada
 Defina outra porta:
@@ -249,9 +269,11 @@ PORT=3001 npm run dev
 $env:PORT=3001; npm run dev
 ```
 
+### A API de gastos falha na Vercel
+1. Verifique se o deploy inclui o `vercel.json` na raiz.
+2. Confirme que `DATA_FILE_PATH` esta configurado para um caminho gravavel (ex: `/tmp/pulse-finance-store.json`).
+3. Lembre que `/tmp` e temporario; para persistencia de verdade em producao, use banco externo.
+
 ---
 
 Se esse projeto te ajudou ou te inspirou, um star no repositorio sempre ajuda.
-=======
-# Pulse-Finance
->>>>>>> 2ddfd36f3163bfd28a7bdfafc72d35acc366dedb

@@ -1,8 +1,12 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const DATA_DIR = path.join(__dirname, "..", "data");
-const DATA_FILE = path.join(DATA_DIR, "store.json");
+const IS_VERCEL = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+const DEFAULT_FILE_PATH = IS_VERCEL
+  ? path.join("/tmp", "pulse-finance-store.json")
+  : path.join(__dirname, "..", "data", "store.json");
+const DATA_FILE = process.env.DATA_FILE_PATH ? path.resolve(process.env.DATA_FILE_PATH) : DEFAULT_FILE_PATH;
+const DATA_DIR = path.dirname(DATA_FILE);
 
 const DEFAULT_CATEGORIES = [
   { id: 1, name: "Uber / Transporte", icon: "🚕" },
@@ -15,10 +19,18 @@ const DEFAULT_CATEGORIES = [
   { id: 8, name: "Outros", icon: "📦" }
 ];
 
+let useMemoryStore = false;
+let memoryStore = null;
+let warnedAboutMemoryFallback = false;
+
 function getDateOffset(days) {
   const now = new Date();
   now.setDate(now.getDate() + days);
   return now.toISOString().slice(0, 10);
+}
+
+function cloneStore(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function createDefaultStore() {
@@ -88,24 +100,100 @@ function createDefaultStore() {
   };
 }
 
+function isReadOnlyFsError(error) {
+  if (!error || !error.code) return false;
+  return error.code === "EROFS" || error.code === "EACCES" || error.code === "EPERM";
+}
+
+function activateMemoryFallback(reasonError, seedData = null) {
+  useMemoryStore = true;
+  if (!memoryStore) {
+    memoryStore = cloneStore(seedData || createDefaultStore());
+  } else if (seedData) {
+    memoryStore = cloneStore(seedData);
+  }
+
+  if (!warnedAboutMemoryFallback) {
+    warnedAboutMemoryFallback = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[dataStore] Persistencia em arquivo indisponivel (${reasonError.code || "erro"}). `
+        + "Usando memoria em runtime. Para persistencia real em producao, configure DATA_FILE_PATH em "
+        + "um volume gravavel ou use banco externo."
+    );
+  }
+}
+
 async function ensureStore() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  if (useMemoryStore) return;
+
   try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.access(DATA_FILE);
-  } catch {
-    await saveStore(createDefaultStore());
+  } catch (error) {
+    if (isReadOnlyFsError(error)) {
+      activateMemoryFallback(error);
+      return;
+    }
+
+    if (error && error.code !== "ENOENT") {
+      throw error;
+    }
+
+    const fallbackData = createDefaultStore();
+    await saveStore(fallbackData);
   }
 }
 
 async function readStore() {
+  if (useMemoryStore) {
+    if (!memoryStore) memoryStore = createDefaultStore();
+    return cloneStore(memoryStore);
+  }
+
   await ensureStore();
-  const raw = await fs.readFile(DATA_FILE, "utf-8");
-  return JSON.parse(raw);
+  if (useMemoryStore) {
+    return cloneStore(memoryStore || createDefaultStore());
+  }
+
+  try {
+    const raw = await fs.readFile(DATA_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch (error) {
+    if (isReadOnlyFsError(error)) {
+      activateMemoryFallback(error);
+      return cloneStore(memoryStore);
+    }
+
+    if (error && error.code === "ENOENT") {
+      const fallbackData = createDefaultStore();
+      await saveStore(fallbackData);
+      return cloneStore(fallbackData);
+    }
+
+    throw error;
+  }
 }
 
 async function saveStore(data) {
-  const payload = JSON.stringify(data, null, 2);
-  await fs.writeFile(DATA_FILE, payload, "utf-8");
+  const snapshot = cloneStore(data);
+
+  if (useMemoryStore) {
+    memoryStore = snapshot;
+    return;
+  }
+
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    const payload = JSON.stringify(snapshot, null, 2);
+    await fs.writeFile(DATA_FILE, payload, "utf-8");
+  } catch (error) {
+    if (isReadOnlyFsError(error)) {
+      activateMemoryFallback(error, snapshot);
+      return;
+    }
+    throw error;
+  }
 }
 
 module.exports = {

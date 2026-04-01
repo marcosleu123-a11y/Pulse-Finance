@@ -2,13 +2,23 @@ const { spawn } = require("child_process");
 const { readStore } = require("./dataStore");
 const { getSummary, getGoalStatus, getAccountStatus } = require("./financeService");
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL === "1"
+    || process.env.AWS_LAMBDA_FUNCTION_NAME
+    || process.env.NETLIFY === "true"
+);
+const OLLAMA_BASE_URL = String(process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gpt-oss:20b-cloud";
+const OLLAMA_API_KEY = String(process.env.OLLAMA_API_KEY || "").trim();
 const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 45000);
 const OLLAMA_PULL_TIMEOUT_MS = Number(process.env.OLLAMA_PULL_TIMEOUT_MS || 120000);
 const OLLAMA_READY_TIMEOUT_MS = Number(process.env.OLLAMA_READY_TIMEOUT_MS || 20000);
-const OLLAMA_AUTO_START = process.env.OLLAMA_AUTO_START !== "false";
-const OLLAMA_SKIP_MODEL_CHECK = process.env.OLLAMA_SKIP_MODEL_CHECK === "true";
+const OLLAMA_AUTO_START = process.env.OLLAMA_AUTO_START === "true"
+  ? true
+  : process.env.OLLAMA_AUTO_START === "false"
+    ? false
+    : !IS_SERVERLESS;
+const OLLAMA_SKIP_MODEL_CHECK = process.env.OLLAMA_SKIP_MODEL_CHECK === "true" || IS_SERVERLESS;
 const MAX_TOOL_LOOPS = 4;
 const MAX_SESSION_MESSAGES = 12;
 
@@ -266,6 +276,37 @@ function createOllamaError(userMessage, details) {
   return error;
 }
 
+function isLoopbackOllamaUrl(baseUrl) {
+  try {
+    const parsed = new URL(baseUrl);
+    return parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function assertOllamaEndpointCompatibility() {
+  if (!IS_SERVERLESS) return;
+
+  if (isLoopbackOllamaUrl(OLLAMA_BASE_URL)) {
+    throw createOllamaError(
+      "No deploy em Vercel, o backend nao consegue acessar Ollama local.",
+      "Configure OLLAMA_BASE_URL com endpoint publico (nao localhost/127.0.0.1)."
+    );
+  }
+}
+
+function createOllamaHeaders(includeJsonContentType = false) {
+  const headers = {};
+  if (includeJsonContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (OLLAMA_API_KEY) {
+    headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+  }
+  return headers;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -298,7 +339,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_TIMEOUT_MS
 }
 
 function startOllamaServe() {
-  if (!OLLAMA_AUTO_START) return false;
+  if (!OLLAMA_AUTO_START || IS_SERVERLESS) return false;
   try {
     const child = spawn("ollama", ["serve"], {
       detached: true,
@@ -316,7 +357,14 @@ async function waitForOllama(timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/tags`, { method: "GET" }, 3000);
+      const response = await fetchWithTimeout(
+        `${OLLAMA_BASE_URL}/api/tags`,
+        {
+          method: "GET",
+          headers: createOllamaHeaders(false)
+        },
+        3000
+      );
       if (response.ok) return true;
     } catch (error) {
       if (!isConnectionError(error) && error.name !== "AbortError") {
@@ -329,7 +377,14 @@ async function waitForOllama(timeoutMs) {
 }
 
 async function getOllamaModelNames() {
-  const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/tags`, { method: "GET" }, 10000);
+  const response = await fetchWithTimeout(
+    `${OLLAMA_BASE_URL}/api/tags`,
+    {
+      method: "GET",
+      headers: createOllamaHeaders(false)
+    },
+    10000
+  );
   if (!response.ok) {
     const details = await response.text();
     throw createOllamaError(
@@ -351,9 +406,7 @@ async function ensureOllamaModel() {
     `${OLLAMA_BASE_URL}/api/pull`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: createOllamaHeaders(true),
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false
@@ -375,13 +428,15 @@ async function ensureOllamaReady() {
   if (ensureOllamaPromise) return ensureOllamaPromise;
 
   ensureOllamaPromise = (async () => {
+    assertOllamaEndpointCompatibility();
+
     let reachable = await waitForOllama(3000);
     if (!reachable) {
       const started = startOllamaServe();
       if (!started) {
         throw createOllamaError(
-          "Nao consegui conectar ao Ollama local.",
-          "Servico indisponivel e auto-start desativado ou falhou."
+          "Nao foi possivel conectar ao Ollama.",
+          `Endpoint atual: ${OLLAMA_BASE_URL}.`
         );
       }
 
@@ -411,9 +466,7 @@ async function callOllama(messages) {
   try {
     const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: createOllamaHeaders(true),
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,
@@ -438,7 +491,7 @@ async function callOllama(messages) {
     return normalizeAssistantMessage(payload.message);
   } catch (error) {
     if (error.name === "AbortError") {
-      throw createOllamaError("Tempo limite ao consultar Ollama local.", error.message);
+      throw createOllamaError("Tempo limite ao consultar Ollama.", error.message);
     }
 
     if (error.userMessage) {
@@ -448,7 +501,7 @@ async function callOllama(messages) {
     if (isConnectionError(error)) {
       ensureOllamaPromise = null;
       throw createOllamaError(
-        "Nao consegui conectar ao Ollama local.",
+        "Nao foi possivel conectar ao Ollama.",
         error.message
       );
     }

@@ -360,7 +360,7 @@ function bindAssistant() {
     pushAssistantMessage("user", userText);
     input.value = "";
     setAssistantLoading(true);
-    setAssistantStatus("Consultando Ollama local...");
+    setAssistantStatus("Consultando assistente...");
 
     try {
       const response = await api.chatWithAgent(userText, assistantState.sessionId);
@@ -375,7 +375,7 @@ function bindAssistant() {
         "system",
         `Falha ao consultar o agente: ${error.message}`
       );
-      setAssistantStatus("Nao foi possivel consultar o agente. Verifique o Ollama.");
+      setAssistantStatus("Nao foi possivel consultar o agente. Verifique a configuracao da IA.");
     } finally {
       setAssistantLoading(false);
       input.focus();

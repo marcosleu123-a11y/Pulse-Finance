@@ -5,7 +5,7 @@ const { validateExpense } = require("./validation");
 const { getSummary, getGoalStatus, getAccountStatus, getInsights } = require("./financeService");
 const { chatWithFinanceAgent, clearAgentSession } = require("./agentService");
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 const app = express();
 
 app.use(express.json());
@@ -220,9 +220,19 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(FRONTEND_DIR, "index.html"));
 });
 
-ensureStore().then(() => {
-  app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Pulse Finance rodando em http://localhost:${PORT}`);
-  });
-});
+if (require.main === module) {
+  ensureStore()
+    .then(() => {
+      app.listen(PORT, () => {
+        // eslint-disable-next-line no-console
+        console.log(`Pulse Finance rodando em http://localhost:${PORT}`);
+      });
+    })
+    .catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("Falha ao iniciar o servidor:", error);
+      process.exit(1);
+    });
+}
+
+module.exports = app;
