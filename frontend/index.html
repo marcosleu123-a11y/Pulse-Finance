@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pulse Finance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./assets/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+    <script type="module" src="./js/app.js" defer></script>
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+    <main class="app-shell">
+      <header class="topbar card">
+        <div>
+          <p class="eyebrow">Pulse Finance</p>
+          <h1>Bem-vindo de volta</h1>
+          <p id="motivationText" class="subtle"></p>
+        </div>
+        <button id="quickAddTodayBtn" class="btn btn-primary">Adicionar gasto de hoje</button>
+      </header>
+
+      <nav class="nav-tabs card">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="quick-add">Lançamento Rápido</button>
+        <button class="tab-btn" data-tab="history">Histórico</button>
+        <button class="tab-btn" data-tab="goals">Metas</button>
+        <button class="tab-btn" data-tab="analytics">Visão Analítica</button>
+        <button class="tab-btn" data-tab="assistant">Assistente Financeira</button>
+      </nav>
+
+      <section id="dashboard" class="tab-content active">
+        <div class="stats-grid">
+          <article class="stat-card card">
+            <p class="label">Total hoje</p>
+            <h3 id="totalToday">£0.00</h3>
+          </article>
+          <article class="stat-card card">
+            <p class="label">Total semana</p>
+            <h3 id="totalWeek">£0.00</h3>
+          </article>
+          <article class="stat-card card">
+            <p class="label">Total mês</p>
+            <h3 id="totalMonth">£0.00</h3>
+          </article>
+          <article class="stat-card card">
+            <p class="label">Maior categoria</p>
+            <h3 id="topCategory">-</h3>
+          </article>
+          <article class="stat-card card">
+            <p class="label">Registros</p>
+            <h3 id="totalRecords">0</h3>
+          </article>
+          <article class="stat-card card">
+            <p class="label">Saldo atual na conta</p>
+            <h3 id="accountCurrentBalance">£0.00</h3>
+          </article>
+        </div>
+
+        <div class="panel-grid">
+          <article class="card">
+            <h2>Gastos por categoria (mês)</h2>
+            <canvas id="dashboardCategoryChart"></canvas>
+          </article>
+          <article class="card">
+            <h2>Fluxo de gastos (14 dias)</h2>
+            <canvas id="dashboardPeriodChart"></canvas>
+          </article>
+        </div>
+
+        <article class="card">
+          <h2>Gastos recentes</h2>
+          <ul id="recentExpenses" class="recent-list"></ul>
+        </article>
+      </section>
+
+      <section id="quick-add" class="tab-content">
+        <article class="card">
+          <h2>Capturar gasto em segundos</h2>
+          <p class="subtle">Pequenos controles geram grandes resultados.</p>
+          <form id="expenseForm" class="form-grid">
+            <label>
+              Valor
+              <input id="amountInput" name="amount" type="text" placeholder="£ 0.00" required />
+            </label>
+            <label>
+              Categoria
+              <select id="categoryInput" name="categoryId" required></select>
+            </label>
+            <label>
+              Descrição
+              <input name="description" type="text" maxlength="120" placeholder="Ex: Uber para casa" required />
+            </label>
+            <label>
+              Data
+              <input id="dateInput" name="date" type="date" required />
+            </label>
+            <label>
+              Forma de pagamento
+              <select name="paymentMethod" required>
+                <option value="Cartão">Cartão</option>
+                <option value="Débito">Débito</option>
+                <option value="Crédito">Crédito</option>
+                <option value="Pix">Pix</option>
+                <option value="Dinheiro">Dinheiro</option>
+              </select>
+            </label>
+            <label class="full">
+              Observação (opcional)
+              <textarea name="note" rows="3" maxlength="180" placeholder="Algum detalhe rápido..."></textarea>
+            </label>
+            <div class="full">
+              <p class="label">Sugestões rápidas</p>
+              <div id="categoryChips" class="chips"></div>
+            </div>
+            <button class="btn btn-primary full" type="submit">Salvar gasto</button>
+          </form>
+        </article>
+      </section>
+
+      <section id="history" class="tab-content">
+        <article class="card">
+          <h2>Histórico de gastos</h2>
+          <div class="filters">
+            <select id="filterCategory"><option value="">Todas categorias</option></select>
+            <input id="filterStartDate" type="date" />
+            <input id="filterEndDate" type="date" />
+            <input id="filterSearch" type="search" placeholder="Buscar descrição" />
+            <select id="filterSort">
+              <option value="date_desc">Mais recentes</option>
+              <option value="date_asc">Mais antigos</option>
+              <option value="amount_desc">Maior valor</option>
+              <option value="amount_asc">Menor valor</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Categoria</th>
+                  <th>Descrição</th>
+                  <th>Pagamento</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="goals" class="tab-content">
+        <article class="card">
+          <h2>Meta e controle mensal</h2>
+          <form id="accountForm" class="goal-form">
+            <label>
+              Saldo inicial do mês (£)
+              <input id="accountStartingBalanceInput" type="number" min="0" step="0.01" required />
+            </label>
+            <button class="btn btn-secondary" type="submit">Atualizar saldo base</button>
+          </form>
+          <div class="goal-metrics">
+            <p><strong>Saldo atual:</strong> <span id="accountCurrentBalanceGoal">£0.00</span></p>
+            <p><strong>Gasto no mês:</strong> <span id="accountSpentMonth">£0.00</span></p>
+            <p><strong>Gasto hoje:</strong> <span id="accountSpentToday">£0.00</span></p>
+          </div>
+          <form id="goalForm" class="goal-form">
+            <label>
+              Limite mensal (£)
+              <input id="goalInput" type="number" min="1" step="0.01" required />
+            </label>
+            <button class="btn btn-secondary" type="submit">Atualizar meta</button>
+          </form>
+          <div class="goal-progress">
+            <div id="goalBar" class="goal-bar"></div>
+          </div>
+          <div class="goal-metrics">
+            <p><strong>Gasto no mês:</strong> <span id="goalSpent">£0.00</span></p>
+            <p><strong>Restante:</strong> <span id="goalRemaining">£0.00</span></p>
+            <p><strong>Uso da meta:</strong> <span id="goalPercent">0%</span></p>
+          </div>
+          <p id="goalAlert" class="goal-alert">Meta dentro do planejado.</p>
+        </article>
+      </section>
+
+      <section id="analytics" class="tab-content">
+        <div class="panel-grid">
+          <article class="card">
+            <h2>Pizza por categoria</h2>
+            <canvas id="analyticsPieChart"></canvas>
+          </article>
+          <article class="card">
+            <h2>Barras por semana</h2>
+            <canvas id="analyticsBarChart"></canvas>
+          </article>
+        </div>
+        <article class="card">
+          <h2>Destaques automáticos</h2>
+          <ul id="analyticsHighlights" class="highlights"></ul>
+        </article>
+      </section>
+
+      <section id="assistant" class="tab-content">
+        <article class="card">
+          <div class="assistant-header">
+            <div>
+              <h2>Assistente Financeira</h2>
+              <p class="subtle">Conectada ao Ollama local e aos dados reais do app.</p>
+            </div>
+            <button id="clearAgentSessionBtn" class="btn btn-secondary" type="button">Limpar conversa</button>
+          </div>
+          <p id="assistantStatus" class="assistant-status subtle">Sessao: pulse-web</p>
+          <div id="assistantMessages" class="chat-shell" aria-live="polite"></div>
+          <form id="assistantForm" class="assistant-form">
+            <input
+              id="assistantInput"
+              class="chat-input"
+              type="text"
+              maxlength="280"
+              placeholder="Ex: Quanto gastei neste mes com mercado?"
+              required
+            />
+            <button id="assistantSendBtn" class="btn btn-primary" type="submit">Enviar</button>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <div
+      id="editModal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editModalTitle"
+      aria-hidden="true"
+    >
+      <div class="modal-content card" tabindex="-1">
+        <h2 id="editModalTitle">Editar gasto</h2>
+        <form id="editExpenseForm" class="form-grid">
+          <input id="editId" type="hidden" />
+          <label>
+            Valor
+            <input id="editAmount" type="text" required />
+          </label>
+          <label>
+            Categoria
+            <select id="editCategory" required></select>
+          </label>
+          <label>
+            Descrição
+            <input id="editDescription" type="text" required />
+          </label>
+          <label>
+            Data
+            <input id="editDate" type="date" required />
+          </label>
+          <label>
+            Forma de pagamento
+            <input id="editPayment" type="text" required />
+          </label>
+          <label class="full">
+            Observação
+            <textarea id="editNote" rows="3"></textarea>
+          </label>
+          <div class="modal-actions full">
+            <button class="btn btn-secondary" type="button" id="closeEditModal">Cancelar</button>
+            <button class="btn btn-primary" type="submit">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
+
+

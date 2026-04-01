@@ -1,0 +1,60 @@
+{
+  "nextExpenseId": 15,
+  "settings": {
+    "monthlyGoal": 1,
+    "accountStartingBalance": 10
+  },
+  "categories": [
+    {
+      "id": 1,
+      "name": "Uber / Transporte",
+      "icon": "🚕"
+    },
+    {
+      "id": 2,
+      "name": "Mercado",
+      "icon": "🛒"
+    },
+    {
+      "id": 3,
+      "name": "Alimentação",
+      "icon": "🍽️"
+    },
+    {
+      "id": 4,
+      "name": "Lazer",
+      "icon": "🎬"
+    },
+    {
+      "id": 5,
+      "name": "Contas",
+      "icon": "💡"
+    },
+    {
+      "id": 6,
+      "name": "Saúde",
+      "icon": "🩺"
+    },
+    {
+      "id": 7,
+      "name": "Compras",
+      "icon": "🛍️"
+    },
+    {
+      "id": 8,
+      "name": "Outros",
+      "icon": "📦"
+    }
+  ],
+  "expenses": [
+    {
+      "id": 14,
+      "amount": 100,
+      "categoryId": 1,
+      "description": "uber para casa",
+      "date": "2026-03-31",
+      "paymentMethod": "Cartão",
+      "note": "cas"
+    }
+  ]
+}
