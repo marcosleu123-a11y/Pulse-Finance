@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Pulse Finance
 
 Aplicacao web de controle financeiro pessoal com foco em:
@@ -251,3 +252,6 @@ $env:PORT=3001; npm run dev
 ---
 
 Se esse projeto te ajudou ou te inspirou, um star no repositorio sempre ajuda.
+=======
+# Pulse-Finance
+>>>>>>> 2ddfd36f3163bfd28a7bdfafc72d35acc366dedb
